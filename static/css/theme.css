@@ -1,0 +1,33 @@
+@CHARSET "UTF-8";
+body {
+	margin:0;
+	padding:0;
+	color:#222;
+	background-color:#fff;
+	font-family: arial,sans-serif;
+	overflow-y: scroll;
+	direction: ltr;
+	display:block;
+	font-size:13px;
+}
+
+.wrap {
+	margin-left:auto;
+	margin-right:auto;
+	margin-top:20px;
+	width:800px;
+	height:650px;
+	overflow-y:scroll;
+	position:relative;
+}
+
+table {
+	width:100%;
+	border-space:0;
+	table-layout:fixed; 
+	word-wrap:break-word;
+}
+
+td {
+	cursor:pointer;
+}

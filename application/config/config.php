@@ -14,7 +14,7 @@
 | path to your installation.
 |
 */
-$config['base_url']	= '';
+$config['base_url']	= 'http://localhost/~jasonhotsauce/Google_Docs';
 
 /*
 |--------------------------------------------------------------------------
@@ -224,7 +224,7 @@ $config['cache_path'] = '';
 | MUST set an encryption key.  See the user guide for info.
 |
 */
-$config['encryption_key'] = '';
+$config['encryption_key'] = 'google';
 
 /*
 |--------------------------------------------------------------------------
@@ -357,6 +357,21 @@ $config['rewrite_short_tags'] = FALSE;
 */
 $config['proxy_ips'] = '';
 
-
+/**
+ * Auto load function. This is the key for Object Oriented Codeigniter. 
+ * With this function, you don't need to include/require classes in anywhere you use them.
+ * PHP 5.3+ required.
+ * 
+ * @param unknown_type $className
+ */
+function __autoload($className){
+    if (file_exists(APPPATH.'libraries/'.$className.EXT)) {
+        require_once APPPATH.'libraries/'.$className.EXT;
+    }elseif (file_exists(APPPATH.'libraries/interfaces/'.$className.EXT)){
+        require_once APPPATH.'libraries/interfaces/'.$className.EXT;
+    }elseif (file_exists(APPPATH.'libraries/exceptions/'.$className.EXT)){
+        require_once APPPATH.'libraries/exceptions/'.$className.EXT;
+    }
+}
 /* End of file config.php */
 /* Location: ./application/config/config.php */

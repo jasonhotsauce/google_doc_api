@@ -91,11 +91,17 @@ class CI_DB_pdo_driver extends CI_DB {
 	 * @access	private called by the base class
 	 * @return	resource
 	 */
-	function db_connect()
+function db_connect()
 	{
-		$this->options['PDO::ATTR_ERRMODE'] = PDO::ERRMODE_SILENT;
-
-		return new PDO($this->hostname, $this->username, $this->password, $this->options);
+	    try {
+//     		$this->options['PDO::ATTR_ERRMODE'] = PDO::ERRMODE_EXCEPTION;
+    
+    		$objDB = new PDO($this->hostname, $this->username, $this->password);
+    		$objDB->setAttribute(PDO::ATTR_ERRMODE,PDO::ERRMODE_EXCEPTION);
+    		return $objDB;
+	    } catch (PDOException $e){
+	        //do nothing, CI will handle that;
+	    }
 	}
 
 	// --------------------------------------------------------------------
@@ -108,10 +114,16 @@ class CI_DB_pdo_driver extends CI_DB {
 	 */
 	function db_pconnect()
 	{
-		$this->options['PDO::ATTR_ERRMODE'] = PDO::ERRMODE_SILENT;
-		$this->options['PDO::ATTR_PERSISTENT'] = TRUE;
-	
-		return new PDO($this->hostname, $this->username, $this->password, $this->options);
+	    try {
+// 	        $this->options['PDO::ATTR_ERRMODE'] = PDO::ERRMODE_EXCEPTION;
+	        $this->options['PDO::ATTR_PERSISTENT'] = TRUE;
+	        $objDB = new PDO($this->hostname, $this->username, $this->password, $this->options);
+	        $objDB->setAttribute(PDO::ATTR_ERRMODE,PDO::ERRMODE_EXCEPTION);
+	         
+	        return $objDB;
+	    }catch (PDOException $e){
+	        // do nothing, CI will handle that;
+	    }
 	}
 
 	// --------------------------------------------------------------------
