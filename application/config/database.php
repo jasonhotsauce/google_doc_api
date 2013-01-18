@@ -49,8 +49,8 @@ $active_group = 'default';
 $active_record = TRUE;
 
 $db['default']['hostname'] = 'mysql:host=localhost'; //PDO uses
-$db['default']['username'] = 'root';
-$db['default']['password'] = '82277741';
+$db['default']['username'] = '';// Your db username
+$db['default']['password'] = '';// Your db password
 $db['default']['database'] = 'google_api';
 $db['default']['dbdriver'] = 'pdo';
 $db['default']['dbprefix'] = '';

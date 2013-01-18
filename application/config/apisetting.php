@@ -3,9 +3,9 @@ $config['google_api'] = array(
 
         'auth_end_point' => 'https://accounts.google.com/o/oauth2/auth',
 
-        'client_id' => '441951789615.apps.googleusercontent.com',
+        'client_id' => '', // Your client id
 
-        'client_secret' => 'wWAjhNABA2p69TWniLFOeRv4',
+        'client_secret' => '', // Your client secret
 
         'scopes' => 'https://www.googleapis.com/auth/drive.file https://spreadsheets.google.com/feeds/ https://docs.googleusercontent.com/',
 
