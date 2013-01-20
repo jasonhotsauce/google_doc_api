@@ -14,7 +14,7 @@
 | path to your installation.
 |
 */
-$config['base_url']	= 'http://localhost/~jasonhotsauce/Google_Docs';
+$config['base_url']	= 'http://localhost/Google_Docs';
 
 /*
 |--------------------------------------------------------------------------

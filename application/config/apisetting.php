@@ -1,9 +1,9 @@
 <?php  if ( ! defined('BASEPATH')) exit('No direct script access allowed');
 $config['google_api'] = array(
 
-        'client_id' => '441951789615.apps.googleusercontent.com',
+        'client_id' => '', // Your app id
 
-        'client_secret' => 'wWAjhNABA2p69TWniLFOeRv4',
+        'client_secret' => '', // Your secret
 
         'scopes' => 'https://www.googleapis.com/auth/drive.file https://spreadsheets.google.com/feeds/ https://docs.googleusercontent.com/',
 
