@@ -8,7 +8,6 @@ class User {
     private $ci;
 //     private $username;
     private $didTryRefresh = FALSE;
-    private static $apiSetting; // This will be an array of the setting for your google document list api. 
     private $googleToken;
     private $refreshToken;
     private $id;
@@ -17,24 +16,9 @@ class User {
      * @param string $apiConfigFile
      * @param string $nameInArray
      */
-    public function __construct($configKey = NULL) {
+    public function __construct() {
         $this->ci = &get_instance();
         $this->ci->load->model('User_model');
-        self::$apiSetting = array();
-        if ($configKey) {
-            self::$apiSetting = $this->ci->config->item($configKey);
-        } else {
-            // Default name of the config key in array is "google_api"
-            self::$apiSetting = $this->ci->config->item("google_api");
-        }
-        if (!key_exists('auth_end_point', self::$apiSetting) || !self::$apiSetting['auth_end_point'])
-            throw new ApiSettingException("Your google api OAuth 2.0 end point is not setup");
-        if (!key_exists('redirect_uri', self::$apiSetting) || !self::$apiSetting['redirect_uri'])
-            throw new ApiSettingException("Your google api auth return url is not setup");
-        if (!key_exists('scopes', self::$apiSetting) || !self::$apiSetting['scopes'])
-            throw new ApiSettingException("Your google api scopes are not setup");
-        if (!key_exists('client_id', self::$apiSetting) || !self::$apiSetting['client_id'])
-            throw new ApiSettingException("Your google api ID is not setup");
         $userData = $this->ci->User_model->getUser();
         if (isset($userData['google_token']))
             $this->googleToken = $userData['google_token'];
@@ -66,7 +50,7 @@ class User {
      * @return string
      */
     public static function getOAuthURL() {
-        $authURL = Google_api::formatOAuthReq(self::$apiSetting);
+        $authURL = Google_api::formatOAuthReq($this->ci->config->item("google_api"));
         return $authURL;
     }
     
@@ -76,7 +60,7 @@ class User {
      * @param string $authCode
      */
     public function gainToken($authCode) {
-        $responseToken = Google_api::getAuthToken(self::$apiSetting, $authCode);
+        $responseToken = Google_api::getAuthToken($authCode);
         $jsonObj = json_decode($responseToken);
         $this->googleToken = $jsonObj->access_token;
         $this->refreshToken = $jsonObj->refresh_token;
@@ -84,7 +68,7 @@ class User {
     }
     
     public function refreshToken() {
-        $responseToken = Google_api::refreshAccessToken(self::$apiSetting, $this->refreshToken);
+        $responseToken = Google_api::refreshAccessToken($this->ci->config->item("google_api"),$this->refreshToken);
         $jsonObj = json_decode($responseToken);
         $this->googleToken = $jsonObj->access_token;
         $this->store();
@@ -121,17 +105,19 @@ class User {
     /**
      * Get all files for user.
      */
-    public function getAllFiles() {
+    public function getFilesInFolder($folderId="") {
         try {
-            $documents = Google_api::recheiveAllFilesInCollection(self::$apiSetting['google_doc_uri'], $this->googleToken);
-            return $documents;
+            $apiSetting = $this->ci->config->item("google_api");
+            $service = new Google_api($apiSetting['client_id'], $apiSetting['client_secret']);
+            $service->listAllFilesInCollection($this->googleToken, $folderId);
+            return $service->files;
         } catch (ApiException $e) {
             if ($e->getCode() === 401 && !$this->didTryRefresh){
                 // Access denied. Try to refresh token
                 $this->refreshToken();
                 $this->didTryRefresh = TRUE;
                 // Try again.
-                return $this->getAllFiles();
+                return $this->getFilesInFolder($folderId);
             } else {
                 throw new ErrorException($e->getMessage(), $e->getCode());
             }

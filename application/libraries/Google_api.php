@@ -1,4 +1,5 @@
 <?php if ( ! defined('BASEPATH')) exit('No direct script access allowed');
+require_once 'Document.php';
 /**
  * Concrete class for working with Google Document List API.
  * Migrated to Google Drive API v2
@@ -8,7 +9,23 @@
  * @copyright  Copyright (c) 2012 Wenbin Zhang.
  * @license     MIT License
  */
-class Google_api {
+class Google_api extends Service{
+    const GOOGLE_DRIVE_URL = "https://www.googleapis.com/drive/v2/files/";
+    const GOOGLE_OAUTH_URL = "https://accounts.google.com/o/oauth2/auth";
+    const GOOGLE_OAUTH_REVOKE_URL = "https://accounts.google.com/o/oauth2/revoke";
+    const GOOGLE_OAUTH_TOKEN_URL = "https://accounts.google.com/o/oauth2/token";
+    private static $clientId;
+    private static $secret;
+    public $files;
+    
+    public function __construct($clientId, $secret) {
+        self::$clientId = $clientId;
+        self::$secret = $secret;
+    }
+    
+    private function buildOAuthHeader($token) {
+        return array('Authorization: Bearer '.$token);
+    }
 	/*
 	** Format HTTP Request for access token.
 	** HTTP REQUEST METHOD: GET
@@ -16,14 +33,11 @@ class Google_api {
 	** @RETURN redirect to Google OAuth 2.0 server.
 	*/
 	public static function formatOAuthReq($authParams){
-	    
-		$endPoint = $authParams['auth_end_point'];
     	$callback = $authParams['redirect_uri'];
     	$scope = $authParams['scopes'];
-    	$clientId = $authParams['client_id'];
-    	$authURL = $endPoint
+    	$authURL = self::GOOGLE_OAUTH_URL
           . "?redirect_uri=" . $callback
-          . "&client_id=" . $clientId
+          . "&client_id=" . $authParams['client_id']
           . "&scope=".$scope
           . "&response_type=code&access_type=offline";
     	return $authURL;
@@ -36,18 +50,15 @@ class Google_api {
 	** @VAR string $refreshToken the unique refresh token returned by OAuth 2.0 server, it's only returned at the first time getting OAuth authorization. Will be removed when revoke.
 	** @VAR array $params google api setting array 
 	*/
-	public static function refreshAccessToken($authParams, $refreshToken){
-		$endPoint = $authParams['auth_token_uri'];
-		$clientId = $authParams['client_id'];
-		$clientSecret = $authParams['client_secret'];
+	public function refreshAccessToken($authParams, $refreshToken){
 		$fields = array(
-			'client_id'=>$authParams['client_id'], 
-			'client_secret'=>$authParams['client_secret'], 
+			'client_id'=>self::$clientId, 
+			'client_secret'=>self::$secret, 
 			'refresh_token'=>$refreshToken, 
 			'grant_type'=>'refresh_token'
 		);
 		$postString = self::formatPostToString($fields);
-		$response = self::doPost($endPoint, $postString);
+		$response = self::doPost(self::GOOGLE_OAUTH_TOKEN_URL, $postString);
 		return $response;
 	}
 	
@@ -57,29 +68,17 @@ class Google_api {
 	** @VAR string $authCode OAuth 2.0 access code.
 	** @RETURN OAuth 2.0 access token JSON.
 	*/
-	public static function getAuthToken($params, $authCode){
-    	$url = $params['auth_token_uri'];
+	public function getAuthToken($params, $authCode){
     	$fields = array(
 			'code' => $authCode,
-			'client_id' => $params['client_id'],
-			'client_secret' => $params['client_secret'],
+			'client_id' => self::$clientId,
+			'client_secret' => self::$secret,
 			'redirect_uri' => $params['redirect_uri'],
 			'grant_type' => 'authorization_code'
 		);
     	$postString = self::formatPostToString($fields);
-		$response = self::doPost($url, $fields);
+		$response = self::doPost(self::GOOGLE_OAUTH_TOKEN_URL, $fields);
     	return $response;
-    }
-    
-    private static function formatPostToString($fields) {
-        $fieldsString = '';
-        
-        foreach ($fields as $key => $value)
-        {
-            $fieldsString .= $key . '=' . $value . '&';
-        }
-        $fieldsString = rtrim($fieldsString, '&');
-        return $fieldsString;
     }
     
     /*
@@ -88,10 +87,9 @@ class Google_api {
     ** @VAR string $refreshToken, unique token returned by OAuth server and stored in database.
     ** @VAR array $params, google api settings.
     */
-    public static function revokeAuth($refreshToken, $params){
-    	$url = $params['revoke_uri'];
+    public function revokeAuth($refreshToken, $params){
     	$field = '?token='.$refreshToken;
-    	$ch = curl_init($url.$field);
+    	$ch = curl_init(self::GOOGLE_OAUTH_REVOKE_URL.$field);
     	curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
     	$result = curl_exec($ch);
     	$httpStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -101,107 +99,7 @@ class Google_api {
         else 
             return FALSE;
     }
-    
-    /**
-     * Using CURL to get data from server.
-     * @param string $url
-     * @param array $httpHeader
-     * @param integer $acceptCode
-     * @return string|boolean
-     */
-    private static function doGet($url, $httpHeader=NULL, $acceptCode=200) {
-        $ch = curl_init($url);
-        if ($httpHeader)
-            curl_setopt($ch, CURLOPT_HTTPHEADER, $httpHeader);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
-        $response = curl_exec($ch);
-        $httpStatus = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-        if ($httpStatus === $acceptCode) {
-            return $response;
-        } else {
-            throw new ApiException("Error occured", $httpStatus);
-        }
-    }
-    
-    /**
-     * Using CURL to post to server
-     * HTTP REQUEST METHOD: POST
-     * @param string $url
-     * @param string $fields
-     * @param array $httpHeader
-     * @param integer $acceptCode
-     * @return mixed|boolean
-     */
-    private static function doPost($url, $fields, $httpHeader=NULL, $acceptCode=200){
-		$ch = curl_init();
-		curl_setopt($ch, CURLOPT_URL, $url);
-		if ($httpHeader) {
-		    curl_setopt($ch, CURLOPT_HTTPHEADER, $httpHeader);
-		    curl_setopt($ch, CURLOPT_HEADER, 1);
-		}
-		curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-		curl_setopt($ch, CURLOPT_POST, TRUE);
-		curl_setopt($ch, CURLOPT_POSTFIELDS, $fields);
-		$response = curl_exec($ch);
-		$responseCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-		curl_close($ch);
-		if($responseCode === $acceptCode){
-		    return $response;
-		}else{
-            throw new ApiException("Error occured", $responseCode);
-		}
-    }
-    
-    /**
-     * Using CURL to PUT to server
-     * @param string $url
-     * @param string $fields
-     * @param array $httpHeader
-     * @param integer $acceptCode
-     * @return mixed|boolean
-     */
-    private static function doPut($url, $fields, $httpHeader=NULL, $acceptCode=200) {
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $url);
-        if ($httpHeader)
-            curl_setopt($ch, CURLOPT_HTTPHEADER, $httpHeader);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $fields);
-        $response = curl_exec($ch);
-        $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-        if ($statusCode === $acceptCode)
-            return $response;
-        else
-            throw new ApiException("Error occured", $statusCode);
-            
-    }
-    
-    /**
-     * Using CURL to delete item from sever
-     * @param string $url
-     * @param array $httpHeader
-     * @param integer $acceptCode
-     * @return mixed|boolean
-     */
-    private static function doDelete($url, $httpHeader=NULL, $acceptCode = 200) {
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $url);
-        if ($httpHeader)
-            curl_setopt($ch, CURLOPT_HTTPHEADER, $httpHeader);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "DELETE");
-        $response = curl_exec($ch);
-        $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-        if ($status === $acceptCode)
-            return TRUE;
-        else
-            throw new ApiException("Error occured", $status);
-    }
-    
+   
     /*
     ** Create collection (folder) in Google Docs (Drive).
     ** HTTP REQUEST METHOD: POST
@@ -211,7 +109,7 @@ class Google_api {
     ** @RETURN 1. string $response xml+atom google doc protocol
     ** @RETURN 2. int HTTP code. 
     */
-    public static function createCollection($url, $token, $name=''){
+    public function createCollection($token, $name=''){
     	$dom = new DOMDocument('1.0', 'UTF-8');
 		$entry = $dom->createElementNS('http://www.w3.org/2005/Atom', 'entry');
 		$dom->appendChild($entry);
@@ -227,7 +125,7 @@ class Google_api {
 			'Content-Length: '.strlen($postField), 
 			'Content-Type: application/atom+xml'
 		);
-    	$response = self::doPost($url, $postField, $headers, 201);
+    	$response = self::doPost(self::GOOGLE_DRIVE_URL, $postField, $headers, 201);
     	return $response;
     }
     
@@ -239,19 +137,23 @@ class Google_api {
     ** @RETURN xml string $response xml_atom google document list API protocol
     ** @RETURN int $status HTTP code. 
     */
-    public static function recheiveAllFilesInCollection($url, $token, $collection=""){
+    public function listAllFilesInCollection($token, $collection=""){
         if ($collection)
-            $url .= $collection.'/children';
-    	$header = array('Authorization: Bearer '.$token);
+            $url = self::GOOGLE_DRIVE_URL.$collection.'/children';
+        else 
+            $url = self::GOOGLE_DRIVE_URL;
+    	$header = self::buildOAuthHeader($token);
     	$response = self::doGet($url, $header);
     	$jsonObj = json_decode($response, TRUE);
-    	$filesArray = $jsonObj['items'];
-    	$documents = array();
-    	foreach ($filesArray as $file) {
-    	    $document = new Document($file);
-    	    $documents[] = $document;
-    	}
-    	return $documents;
+    	if (!$collection)
+    	    $this->files = new FileList($jsonObj);
+    	else
+    	    $this->files = new ChildList($jsonObj);
+    }
+    
+    public static function searchFiles($url, $token, $query) {
+        $header = self::buildOAuthHeader($token);
+        $response = self::doGet(self::GOOGLE_DRIVE_URL.'q='.urlencode($query), $header);
     }
     
     /*
@@ -263,8 +165,8 @@ class Google_api {
     ** @RETURN int $status HTTP code.
     */
     public static function deleteDocument($url, $documentId, $etag, $token){
-    	$header = array('Authorization: Bearer '.$token);
-    	$response = self::doPost($url.$documentId.'/trash', "", $header);
+    	$header = self::buildOAuthHeader($token);
+    	$response = self::doPost(self::GOOGLE_DRIVE_URL.$documentId.'/trash', "", $header);
     	return $response;
     }
     
@@ -341,9 +243,7 @@ class Google_api {
     }
     
     public static function retrieveAcl($aclLink, $token){
-    	$header = array(
-    		'Authorization: Bearer '.$token 
-    	);
+    	$header = self::buildOAuthHeader($token);
     	$response = self::doGet($aclLink, $header);
     	return $response;
     }
@@ -412,20 +312,10 @@ class Google_api {
     	return $response;
     }
     
-    private static function httpParseHeaders( $header ){
-        $retVal = array();
-        $fields = explode("\r\n", preg_replace('/\x0D\x0A[\x09\x20]+/', ' ', $header));
-        foreach( $fields as $field ) {
-            if( preg_match('/([^:]+): (.+)/m', $field, $match) ) {
-                $match[1] = preg_replace('/(?<=^|[\x09\x20\x2D])./e', 'strtoupper("\0")', strtolower(trim($match[1])));
-                if( isset($retVal[$match[1]]) ) {
-                    $retVal[$match[1]] = array($retVal[$match[1]], $match[2]);
-                } else {
-                    $retVal[$match[1]] = trim($match[2]);
-                }
-            }
-        }
-        return $retVal;
-    }
+    
 }
+
+// class Google_Children {
+//     private 
+// }
 ?>

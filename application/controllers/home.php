@@ -10,10 +10,15 @@ class Home extends MY_Controller {
      * Default function at the entry point. 
      */
     public function index() {
+        $this->fileList();
+    }
+    
+    public function fileList() {
         if ($this->myself->getGoogleToken()){
             // We have access to user's data. Rechieve all user files
             $this->viewData['hasToken'] = TRUE;
-            $this->viewData['documents'] = $this->myself->getAllFiles();
+            $folderId = $this->uri->segment(3);
+            $this->viewData['documents'] = $this->myself->getFilesInFolder($folderId);
         } else
             $this->viewData['hasToken'] = FALSE;
         $this->__showView("content");
